@@ -56,10 +56,10 @@ if opt.optimization == 'SGD' then
 end
 
 opt.optimization = 'LBFGS'
-opt.batchSize = 10000
+opt.batchSize = 1
 opt.model = 'linear'
 opt.full = 1
-
+opt.maxiter = 1
 
 ----------------------------------------------------------------------
 -- define model to train
@@ -109,6 +109,8 @@ if opt.network == '' then
       ------------------------------------------------------------
       model:add(nn.Reshape(1024))
       model:add(nn.Linear(1024,#classes))
+--      model:add(nn.Reshape(2))
+--      model:add(nn.Linear(2, #classes))
       ------------------------------------------------------------
 
    else
@@ -137,22 +139,14 @@ criterion = nn.ClassNLLCriterion()
 ----------------------------------------------------------------------
 -- get/create dataset
 --
-if opt.full then
-   nbTrainingPatches = 60000
-   nbTestingPatches = 10000
-else
-   nbTrainingPatches = 2000
-   nbTestingPatches = 1000
-   print('<warning> only using 2000 samples to train quickly (use flag -full to use 60000 samples)')
-end
+nbTrainingPatches = 60000
+nbTestingPatches = 10000
 
--- create training set and normalize
-trainData = mnist.loadTrainSet(nbTrainingPatches, geometry)
-trainData:normalizeGlobal(mean, std)
 
--- create test set and normalize
-testData = mnist.loadTestSet(nbTestingPatches, geometry)
-testData:normalizeGlobal(mean, std)
+mnist.saveTestSet()
+mnist.saveTrainSet()
+--trainData = mnist.loadTrainSet(nbTrainingPatches, geometry)
+--testData = mnist.loadTestSet(nbTestingPatches, geometry)
 
 ----------------------------------------------------------------------
 -- define training and testing functions
@@ -185,8 +179,10 @@ function train(dataset)
          -- load new sample
          local sample = dataset[i]
          local input = sample[1]:clone()
+	 print(input)
          local _,target = sample[2]:clone():max(1)
          target = target:squeeze()
+--	 print(target)
          inputs[k] = input
          targets[k] = target
          k = k + 1
@@ -241,7 +237,6 @@ function train(dataset)
          -- Perform LBFGS step:
          lbfgsState = lbfgsState or {
             maxIter = opt.maxIter,
-            lineSearch = optim.lswolfe
          }
          optim.lbfgs(feval, parameters, lbfgsState)
        
@@ -250,22 +245,9 @@ function train(dataset)
          print(' - progress in batch: ' .. t .. '/' .. dataset:size())
          print(' - nb of iterations: ' .. lbfgsState.nIter)
          print(' - nb of function evalutions: ' .. lbfgsState.funcEval)
-
-      elseif opt.optimization == 'SGD' then
-
-         -- Perform SGD step:
-         sgdState = sgdState or {
-            learningRate = opt.learningRate,
-            momentum = opt.momentum,
-            learningRateDecay = 5e-7
-         }
-         optim.sgd(feval, parameters, sgdState)
-      
-         -- disp progress
-         xlua.progress(t, dataset:size())
-
-      else
-         error('unknown optimization method')
+      end
+      if t>5 then
+	 break
       end
    end
    
@@ -274,22 +256,24 @@ function train(dataset)
    time = time / dataset:size()
    print("<trainer> time to learn 1 sample = " .. (time*1000) .. 'ms')
 
+   print("Accuracy")
+   print(confusion.totalValid)
    -- print confusion matrix
-   print(confusion)
+   --   print(confusion)
    trainLogger:add{['% mean class accuracy (train set)'] = confusion.totalValid * 100}
    confusion:zero()
 
    -- save/log current net
-   local filename = paths.concat(opt.save, 'mnist.net')
-   os.execute('mkdir -p ' .. sys.dirname(filename))
-   if paths.filep(filename) then
-      os.execute('mv ' .. filename .. ' ' .. filename .. '.old')
-   end
-   print('<trainer> saving network to '..filename)
-   -- torch.save(filename, model)
+   -- local filename = paths.concat(opt.save, 'mnist.net')
+   -- os.execute('mkdir -p ' .. sys.dirname(filename))
+   -- if paths.filep(filename) then
+   --    os.execute('mv ' .. filename .. ' ' .. filename .. '.old')
+   -- end
+   -- print('<trainer> saving network to '..filename)
+   -- -- torch.save(filename, model)
 
-   -- next epoch
-   epoch = epoch + 1
+   -- -- next epoch
+   -- epoch = epoch + 1
 end
 
 -- test function
@@ -330,12 +314,12 @@ function test(dataset)
    -- timing
    time = sys.clock() - time
    time = time / dataset:size()
-   print("<trainer> time to test 1 sample = " .. (time*1000) .. 'ms')
+--   print("<trainer> time to test 1 sample = " .. (time*1000) .. 'ms')
 
    -- print confusion matrix
-   print(confusion)
-   testLogger:add{['% mean class accuracy (test set)'] = confusion.totalValid * 100}
-   confusion:zero()
+--   print(confusion)
+--   testLogger:add{['% mean class accuracy (test set)'] = confusion.totalValid * 100}
+--   confusion:zero()
 end
 
 ----------------------------------------------------------------------
@@ -343,8 +327,9 @@ end
 --
 while true do
    -- train/test
+--   test(testData)
    train(trainData)
-   test(testData)
+--   test(testData)
 
    -- plot errors
    if opt.plot then
