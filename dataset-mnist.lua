@@ -74,7 +74,7 @@ function serializeData(tensor, fname)
 	 end
 	 out:write("\n")
       end
-      out:write("---\n")
+      --      out:write("---\n")
    end
    out:close()
 end
