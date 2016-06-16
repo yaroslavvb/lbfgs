@@ -45,23 +45,6 @@ function serializeLabels(tensor, fname)
    out:close()
 end
 
-function serializeTensor(tensor)
-   local out = assert(io.open("./dump.csv", "w")) -- open a file for serialization
-
-   splitter = ","
-   for i=1,tensor:size(1) do
-      for j=1,tensor:size(2) do
-	 out:write(tensor[i][j])
-	 if j == tensor:size(2) then
-            out:write("\n")
-	 else
-            out:write(splitter)
-	 end
-      end
-   end
-   out:close()
-end
-
 function serializeData(tensor, fname)
    local out = assert(io.open(fname, "w")) -- open a file for serialization
 
@@ -70,7 +53,7 @@ function serializeData(tensor, fname)
       for k=1,tensor:size(3) do
 	 for l=1,tensor:size(4) do
 	    out:write(tensor[i][j][k][l])
-	    out:write(",")
+	    out:write(" ")
 	 end
 	 out:write("\n")
       end
