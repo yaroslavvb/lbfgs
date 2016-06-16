@@ -70,6 +70,8 @@ classes = {'1','2','3','4','5','6','7','8','9','10'}
 -- geometry: width and height of input images
 geometry = {32,32}
 
+nn.oldSeed = 1
+
 if opt.network == '' then
    -- define model to train
    model = nn.Sequential()
@@ -143,10 +145,10 @@ nbTrainingPatches = 60000
 nbTestingPatches = 10000
 
 
-mnist.saveTestSet()
-mnist.saveTrainSet()
---trainData = mnist.loadTrainSet(nbTrainingPatches, geometry)
---testData = mnist.loadTestSet(nbTestingPatches, geometry)
+--mnist.saveTestSet()
+--mnist.saveTrainSet()
+trainData = mnist.loadTrainSet(nbTrainingPatches, geometry)
+testData = mnist.loadTestSet(nbTestingPatches, geometry)
 
 ----------------------------------------------------------------------
 -- define training and testing functions
@@ -167,6 +169,7 @@ function train(dataset)
    -- local vars
    local time = sys.clock()
 
+   --   print(parameters)
    -- do one epoch
    print('<trainer> on training set:')
    print("<trainer> online epoch # " .. epoch .. ' [batchSize = ' .. opt.batchSize .. ']')
@@ -182,7 +185,7 @@ function train(dataset)
 	 print(input)
          local _,target = sample[2]:clone():max(1)
          target = target:squeeze()
---	 print(target)
+	 print("Target:", target)
          inputs[k] = input
          targets[k] = target
          k = k + 1
@@ -231,6 +234,11 @@ function train(dataset)
          return f,gradParameters
       end
 
+
+      fval,fgrad = feval(parameters)
+      print("Feval", fval)
+      print("Fgrad", fgrad)
+      print("Param size", parameters:size(1), parameters:size())
       -- optimize on current mini-batch
       if opt.optimization == 'LBFGS' then
 
@@ -246,7 +254,7 @@ function train(dataset)
          print(' - nb of iterations: ' .. lbfgsState.nIter)
          print(' - nb of function evalutions: ' .. lbfgsState.funcEval)
       end
-      if t>5 then
+      if t>0 then
 	 break
       end
    end
