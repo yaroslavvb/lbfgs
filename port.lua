@@ -1,3 +1,4 @@
+-- forked from https://github.com/torch/demos/blob/master/train-a-digit-classifier/train-on-mnist.lua
 ----------------------------------------------------------------------
 -- This script shows how to train different models on the MNIST 
 -- dataset, using multiple optimization techniques (SGD, LBFGS)
@@ -51,16 +52,20 @@ torch.setnumthreads(opt.threads)
 print('<torch> set nb of threads to ' .. torch.getnumthreads())
 
 -- use floats, for SGD
-if opt.optimization == 'SGD' then
-   torch.setdefaulttensortype('torch.FloatTensor')
-end
+--if opt.optimization == 'SGD' then
+--   torch.setdefaulttensortype('torch.FloatTensor')
+--end
 
-opt.optimization = 'LBFGS'
-opt.batchSize = 1
+--opt.optimization = 'LBFGS'
+opt.optimization = 'SGD'
+opt.batchSize = 100
 opt.model = 'linear'
+opt.coefL2 = 1
 opt.full = 1
 opt.maxiter = 1
 
+opt.learningRate = 1
+opt.momentum = 0
 ----------------------------------------------------------------------
 -- define model to train
 -- on the 10-class classification problem
@@ -71,6 +76,18 @@ classes = {'1','2','3','4','5','6','7','8','9','10'}
 geometry = {32,32}
 
 nn.oldSeed = 1
+
+
+function saveTensor1D(tensor, fname)
+   local out = assert(io.open(fname, "w")) -- open a file for serialization
+
+   for i=1,tensor:size(1) do
+      out:write(tensor[i])
+      out:write("\n")
+   end
+   out:close()
+end
+
 
 if opt.network == '' then
    -- define model to train
@@ -127,6 +144,8 @@ end
 
 -- retrieve parameters and gradients
 parameters,gradParameters = model:getParameters()
+--print(parameters)
+print(torch.Tensor(1))
 
 -- verbose
 print('<mnist> using model:')
@@ -173,19 +192,21 @@ function train(dataset)
    -- do one epoch
    print('<trainer> on training set:')
    print("<trainer> online epoch # " .. epoch .. ' [batchSize = ' .. opt.batchSize .. ']')
-   for t = 1,dataset:size(),opt.batchSize do
+ --   for t = 1,dataset:size(),opt.batchSize do
+   for t = 1,10 do
       -- create mini batch
       local inputs = torch.Tensor(opt.batchSize,1,geometry[1],geometry[2])
       local targets = torch.Tensor(opt.batchSize)
       local k = 1
-      for i = t,math.min(t+opt.batchSize-1,dataset:size()) do
+      -- fix batch to always start from the same example
+      --      for i = t,math.min(t+opt.batchSize-1,dataset:size()) do
+      for i = 1, 1+opt.batchSize-1 do
          -- load new sample
          local sample = dataset[i]
          local input = sample[1]:clone()
-	 print(input)
          local _,target = sample[2]:clone():max(1)
          target = target:squeeze()
-	 print("Target:", target)
+--	 print("Target:", target)
          inputs[k] = input
          targets[k] = target
          k = k + 1
@@ -200,6 +221,9 @@ function train(dataset)
          if x ~= parameters then
             parameters:copy(x)
          end
+
+	 x_fname = string.format("stepdata/x-%s", t)
+	 saveTensor1D(x, x_fname)
 
          -- reset gradients
          gradParameters:zero()
@@ -237,8 +261,13 @@ function train(dataset)
 
       fval,fgrad = feval(parameters)
       print("Feval", fval)
-      print("Fgrad", fgrad)
-      print("Param size", parameters:size(1), parameters:size())
+      --      print("Fgrad", fgrad)
+      print("Saving parameters at step")
+
+      grad_fname = string.format("stepdata/grad-%s", t)
+      saveTensor1D(fgrad, grad_fname)
+      param_fname = string.format("stepdata/param-%s", t)
+      saveTensor1D(parameters, param_fname)
       -- optimize on current mini-batch
       if opt.optimization == 'LBFGS' then
 
@@ -253,9 +282,16 @@ function train(dataset)
          print(' - progress in batch: ' .. t .. '/' .. dataset:size())
          print(' - nb of iterations: ' .. lbfgsState.nIter)
          print(' - nb of function evalutions: ' .. lbfgsState.funcEval)
-      end
-      if t>0 then
-	 break
+
+      elseif opt.optimization == 'SGD' then
+
+         -- Perform SGD step:
+         sgdState = sgdState or {
+            learningRate = opt.learningRate,
+            momentum = opt.momentum,
+            learningRateDecay = 0
+         }
+         optim.sgd(feval, parameters, sgdState)
       end
    end
    
