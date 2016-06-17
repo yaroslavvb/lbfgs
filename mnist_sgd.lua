@@ -1,3 +1,5 @@
+-- Run MNIST SGD for several steps, save results
+
 -- forked from https://github.com/torch/demos/blob/master/train-a-digit-classifier/train-on-mnist.lua
 ----------------------------------------------------------------------
 -- This script shows how to train different models on the MNIST 
