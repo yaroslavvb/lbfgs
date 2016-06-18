@@ -70,10 +70,11 @@ def concat_flatten(tensors):
         flat_tensors.append(tf.reshape(tensor, [-1]))
     return tf.concat(0, flat_tensors)
 
-def compute_tf_values(num_steps=10):
+def compute_tf_values(lua_params):
   """Run tensorflow SGD for a few steps, return tuple of gradient history,
   parameter history and loss value history."""
-  
+
+  num_steps = len(lua_params)
   W = tf.Variable(tf.ones_initializer((1024, 10), dtype=dtype))
   b = tf.Variable(tf.ones_initializer((1, 10), dtype=dtype))
   x = tf.Variable(tf.zeros_initializer((batchSize, 1024), dtype=dtype))
@@ -115,13 +116,26 @@ def compute_tf_values(num_steps=10):
   tf_grads = []
   tf_params = []
   tf_fvals = []
+  
+  tf_grads_ref = []
+  tf_fvals_ref = []
   for i in range(num_steps):
     tf_grads.append(sess.run(flat_grad))
     tf_params.append(sess.run(flat_params))
     tf_fvals.append(sess.run(loss))
+
+    # get value of gradients/loss if we feed Torch parameters at each step
+    lua_W_flat = lua_params[i][:-10]
+    lua_W = lua_W_flat.reshape((10, 1024))
+    tf_W = lua_W.T
+    lua_b = lua_params[i][-10:]
+    tf_b = lua_b.reshape((1, -1))
+    tf_grads_ref.append(sess.run(flat_grad, feed_dict={W: tf_W, b: tf_b}))
+    tf_fvals_ref.append(sess.run(loss, feed_dict={W: tf_W, b: tf_b}))
+
     sess.run(train_step)
 
-  return tf_grads, tf_params, tf_fvals
+  return tf_grads, tf_params, tf_fvals, tf_grads_ref, tf_fvals_ref
 
 def compare_vals(torch_vals, tf_vals):
   pass
@@ -139,11 +153,15 @@ def report_error(message, values1, values2):
   
 if __name__=="__main__":
   lua_grads,lua_params,lua_fvals = read_torch_values()
-  tf_grads, tf_params, tf_fvals = compute_tf_values(len(lua_fvals))
+  (tf_grads, tf_params, tf_fvals, tf_grads_ref,
+   tf_fvals_ref) = compute_tf_values(lua_params)
+   
   tf_fvals_np = np.array(tf_fvals)
   lua_fvals_np = np.array(lua_fvals)
 
-  report_error("Gradient errors", lua_params, tf_params)
-  report_error("Parameter errors", lua_grads, tf_grads)
+  report_error("Parameter errors", lua_params, tf_params)
+  report_error("Gradient errors", lua_grads, tf_grads)
+  report_error("Gradient ref errors", lua_grads, tf_grads_ref)
   report_error("Fval errors", lua_fvals, tf_fvals)
+  report_error("Fval errors ref", lua_fvals, tf_fvals_ref)
   assert max_relative_error(lua_grads[-1], tf_grads[-1]) < 7e-05
