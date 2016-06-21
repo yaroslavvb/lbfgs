@@ -44,7 +44,11 @@ RETURN:
 -- require 'pl'
 -- require 'paths'
 require 'port_util'
-   
+
+
+-- torch notes
+-- a:add(scalar1, tensor2) --> a+=scalar1*tensor2
+-- a:add(tensor1, tensor2) --> a = tensor1 + tensor2
 function optim.hacked_lbfgs(opfunc, x, config, state)
    -- get/update state
    local config = config or {}
@@ -76,6 +80,10 @@ function optim.hacked_lbfgs(opfunc, x, config, state)
 
    -- evaluate initial f(x) and df/dx
    local f,g = opfunc(x)
+   saveTensor1D(g, string.format("stepdata/g-%s", 0))
+   saveTensor0D(f, string.format("stepdata/f-%s", 0))
+   saveTensor1D(x, string.format("stepdata/x-%s", 0))
+
    local f_hist = {f}
    local currentFuncEval = 1
    state.funcEval = state.funcEval + 1
@@ -125,13 +133,18 @@ function optim.hacked_lbfgs(opfunc, x, config, state)
          old_dirs = {}
          old_stps = {}
          Hdiag = 1
+	 saveTensor1D(d, string.format("stepdata/d-%s", nIter))
+	 saveTensor0D(Hdiag, string.format("stepdata/Hdiag-%s", nIter))
       else
          -- do lbfgs update (update memory)
          local y = table.remove(state.dir_bufs)  -- pop
          local s = table.remove(state.stp_bufs)
          y:add(g, -1, g_old)  -- g - g_old
+	 saveTensor1D(y, string.format("stepdata/y-%s", nIter))
          s:mul(d, t)          -- d*t
+	 saveTensor1D(s, string.format("stepdata/s-%s", nIter))
          local ys = y:dot(s)  -- y*s
+	 saveTensor0D(ys, string.format("stepdata/ys-%s", nIter))
          if ys > 1e-10 then
             -- updating memory
             if #old_dirs == nCorrection then
@@ -148,6 +161,7 @@ function optim.hacked_lbfgs(opfunc, x, config, state)
 
             -- update scale of initial Hessian approximation
             Hdiag = ys / y:dot(y)  -- (y*y)
+	    saveTensor0D(Hdiag, string.format("stepdata/Hdiag-%s", nIter))
          else
             -- put y and s back into the buffer pool
             table.insert(state.dir_bufs, y)
@@ -159,10 +173,13 @@ function optim.hacked_lbfgs(opfunc, x, config, state)
          local k = #old_dirs
 
          -- need to be accessed element-by-element, so don't re-type tensor:
-         state.ro = state.ro or torch.Tensor(nCorrection); local ro = state.ro
+	 -- NOTE(yaroslavvb): torch.Tensor creates uninitialized tensor
+         --state.ro = state.ro or torch.Tensor(nCorrection); local ro = state.ro
+	 state.ro = state.ro or torch.zeros(nCorrection); local ro = state.ro
          for i = 1,k do
             ro[i] = 1 / old_stps[i]:dot(old_dirs[i])
          end
+	 saveTensor1D(ro, string.format("stepdata/ro-%s", nIter))
 
          -- iteration in L-BFGS loop collapsed to use just one buffer
          local q = tmp1  -- reuse tmp1 for the q buffer
@@ -174,34 +191,32 @@ function optim.hacked_lbfgs(opfunc, x, config, state)
             al[i] = old_dirs[i]:dot(q) * ro[i]
             q:add(-al[i], old_stps[i])
          end
+	 saveTensor1D(al, string.format("stepdata/al-%s", nIter))
+	 saveTensor1D(q, string.format("stepdata/q-%s", nIter))
 
          -- multiply by initial Hessian
          r = d  -- share the same buffer, since we don't need the old d
          r:mul(q, Hdiag)  -- q[1] * Hdiag
          for i = 1,k do
-            local be_i = old_stps[i]:dot(r) * ro[i]
+            be_i = old_stps[i]:dot(r) * ro[i]
             r:add(al[i]-be_i, old_dirs[i])
          end
+	 saveTensor0D(be_i, string.format("stepdata/be_i-%s", nIter))
+	 saveTensor1D(d, string.format("stepdata/d-%s", nIter))
+	 saveTensor1D(r, string.format("stepdata/r-%s", nIter))
          -- final direction is in r/d (same object)
       end
       g_old = g_old or g:clone()
       g_old:copy(g)
       f_old = f
 
-      grad_fname = string.format("stepdata/grad-%s", nIter)
-      saveTensor1D(g, grad_fname)
-      param_fname = string.format("stepdata/params-%s", nIter)
-      saveTensor1D(x, param_fname)
-      fval_fname = string.format("stepdata/fval-%s", nIter)
-      saveTensor0D(f, fval_fname)
-      
-
       ------------------------------------------------------------
       -- compute step length
       ------------------------------------------------------------
       -- directional derivative
       local gtd = g:dot(d)  -- g * d
-
+      saveTensor0D(gtd, string.format("stepdata/gtd-%s", nIter))
+      
       -- check that progress can be made along that direction
       if gtd > -tolX then
          break
@@ -214,6 +229,7 @@ function optim.hacked_lbfgs(opfunc, x, config, state)
       else
          t = learningRate
       end
+      saveTensor0D(t, string.format("stepdata/t-%s", nIter))
 
       -- optional line search: user function
       local lsFuncEval = 0
@@ -229,10 +245,17 @@ function optim.hacked_lbfgs(opfunc, x, config, state)
             -- the reason we do this: in a stochastic setting,
             -- no use to re-evaluate that function here
             f,g = opfunc(x)
+	    if nIter==2 then
+	       saveTensor1D(g, "stepdata/temp")
+	       saveTensor0D(g:sum(), "stepdata/tempsum")
+	    end
             lsFuncEval = 1
             table.insert(f_hist, f)
          end
       end
+      saveTensor1D(g, string.format("stepdata/g-%s", nIter))
+      saveTensor0D(f, string.format("stepdata/f-%s", nIter))
+      saveTensor1D(x, string.format("stepdata/x-%s", nIter))
 
       -- update func eval
       currentFuncEval = currentFuncEval + lsFuncEval
@@ -259,6 +282,7 @@ function optim.hacked_lbfgs(opfunc, x, config, state)
          verbose('optimality condition below tolFun')
          break
       end
+      saveTensor1D(tmp1, string.format("stepdata/tmp1-%s", nIter))
 
       tmp1:copy(d):mul(t):abs()
       if tmp1:sum() <= tolX then
@@ -266,12 +290,14 @@ function optim.hacked_lbfgs(opfunc, x, config, state)
          verbose('step size below tolX')
          break
       end
+      saveTensor1D(tmp1, string.format("stepdata/tmp11-%s", nIter))
 
       if abs(f-f_old) < tolX then
          -- function value changing less than tolX
          verbose('function value changing less than tolX')
          break
       end
+      saveTensor0D(f-f_old, string.format("stepdata/fdiff-%s", nIter))
    end
 
    -- save state
