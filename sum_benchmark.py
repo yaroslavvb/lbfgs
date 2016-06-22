@@ -3,6 +3,7 @@ import numpy as np
 import tensorflow as tf
 from tensorflow.contrib import immediate
 import gc
+import sys, os
 
 def test_numpy(N, iters):
   arr = np.ones((N,), dtype=dtype)
@@ -63,14 +64,20 @@ def test_tf_env(N, iters):
     
   return np.asarray(times)
 
-  
 if __name__=='__main__':
   # turn off Python garbage collector to not mess with times
   gc.disable()
   dtype = np.float32
   np.set_printoptions(precision=6)
 
-  print np.min(test_numpy(N=10**5, iters=5000))
-#  print np.min(test_tf(N=10**5, iters=5000))
-#  print np.min(test_tf_persistent(N=10**5, iters=5000))
-#  print np.min(test_tf_env(N=10**5, iters=5000))
+  benchmark_type = sys.argv[1]
+  if benchmark_type == 'np':
+    print np.min(test_numpy(N=10**5, iters=5000))
+  elif benchmark_type == 'tf':
+    np.min(test_tf(N=10**5, iters=5000))
+  elif benchmark_type == 'tf_persistent':
+    print np.min(test_tf_persistent(N=10**5, iters=5000))
+  elif benchmark_type == 'tf_env':
+    print np.min(test_tf_env(N=10**5, iters=5000))
+  else:
+    print 'unknown benchmark', benchmark_type

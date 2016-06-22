@@ -31,7 +31,8 @@ def lbfgs(opfunc, x, config, state):
   nCorrection = config.nCorrection or 100
   lineSearch = config.lineSearch
   lineSearchOpts = config.lineSearchOptions
-  learningRate = config.learningRate or 1
+  learningRate = env.numpy_to_itensor(config.learningRate or 1,
+                                      dtype=tf.float64)
   isverbose = config.verbose or False
 
   # verbose function
@@ -42,9 +43,9 @@ def lbfgs(opfunc, x, config, state):
 
   # evaluate initial f(x) and df/dx
   f, g = opfunc(x)
-  np.save("stepdata.tf/g-"+str(0), g.as_numpy())
-  np.save("stepdata.tf/f-"+str(0), f.as_numpy())
-  np.save("stepdata.tf/x-"+str(0), x.as_numpy())
+  #  np.save("stepdata.temp.tf/g-"+str(0), g.as_numpy())
+  #  np.save("stepdata.temp.tf/f-"+str(0), f.as_numpy())
+  #  np.save("stepdata.temp.tf/x-"+str(0), x.as_numpy())
 
   f_hist = [f]
   currentFuncEval = 1
@@ -73,16 +74,16 @@ def lbfgs(opfunc, x, config, state):
       old_dirs = []
       old_stps = []
       Hdiag = env.numpy_to_itensor(1, dtype=tf.float64)
-      np.save("stepdata.tf/d-"+str(nIter), d.as_numpy())
-      np.save("stepdata.tf/Hdiag-"+str(nIter), Hdiag.as_numpy())
+      #      np.save("stepdata.temp.tf/d-"+str(nIter), d.as_numpy())
+      #      np.save("stepdata.temp.tf/Hdiag-"+str(nIter), Hdiag.as_numpy())
     else:
       # do lbfgs update (update memory)
       y = g - g_old
-      np.save("stepdata.tf/y-"+str(nIter), y.as_numpy())
+      #      np.save("stepdata.temp.tf/y-"+str(nIter), y.as_numpy())
       s = d*t
-      np.save("stepdata.tf/s-"+str(nIter), s.as_numpy())
+      #      np.save("stepdata.temp.tf/s-"+str(nIter), s.as_numpy())
       ys = dot(y, s)
-      np.save("stepdata.tf/ys-"+str(nIter), ys.as_numpy())
+      #      np.save("stepdata.temp.tf/ys-"+str(nIter), ys.as_numpy())
       
       if ys > 1e-10:
         # updating memory
@@ -96,7 +97,7 @@ def lbfgs(opfunc, x, config, state):
 
         # update scale of initial Hessian approximation
         Hdiag = im.div(ys, dot(y, y))
-        np.save("stepdata.tf/Hdiag-"+str(nIter), Hdiag.as_numpy())
+        #        np.save("stepdata.temp.tf/Hdiag-"+str(nIter), Hdiag.as_numpy())
 
       # compute the approximate (L-BFGS) inverse Hessian 
       # multiplied by the gradient
@@ -105,7 +106,7 @@ def lbfgs(opfunc, x, config, state):
       for i in range(k):
         ro[i] = im.div(1, dot(old_stps[i], old_dirs[i]))
         
-      np.save("stepdata.tf/ro-"+str(nIter), im.pack(ro).as_numpy())
+        #      np.save("stepdata.temp.tf/ro-"+str(nIter), im.pack(ro).as_numpy())
 
         
       al = [0]*nCorrection
@@ -115,8 +116,8 @@ def lbfgs(opfunc, x, config, state):
         al[i] = dot(old_dirs[i], q) * ro[i]
         q = q - al[i]*old_stps[i]
 
-      np.save("stepdata.tf/al-"+str(nIter), im.pack(al).as_numpy())
-      np.save("stepdata.tf/q-"+str(nIter), q.as_numpy())
+        #      np.save("stepdata.temp.tf/al-"+str(nIter), im.pack(al).as_numpy())
+        #      np.save("stepdata.temp.tf/q-"+str(nIter), q.as_numpy())
 
       # multiply by initial Hessian
       r = q*Hdiag
@@ -124,9 +125,9 @@ def lbfgs(opfunc, x, config, state):
         be_i = dot(old_stps[i], r) * ro[i]
         r += (al[i]-be_i)*old_dirs[i]
         
-      np.save("stepdata.tf/be_i-"+str(nIter), be_i.as_numpy())
-      np.save("stepdata.tf/d-"+str(nIter), d.as_numpy())
-      np.save("stepdata.tf/r-"+str(nIter), r.as_numpy())
+        #      np.save("stepdata.temp.tf/be_i-"+str(nIter), be_i.as_numpy())
+        #      np.save("stepdata.temp.tf/d-"+str(nIter), d.as_numpy())
+        #      np.save("stepdata.temp.tf/r-"+str(nIter), r.as_numpy())
       d = r
       # final direction is in r/d (same object)
 
@@ -138,7 +139,7 @@ def lbfgs(opfunc, x, config, state):
     ############################################################
     ## directional derivative
     gtd = dot(g, d)
-    np.save("stepdata.tf/gtd-"+str(nIter), gtd.as_numpy())
+    #    np.save("stepdata.temp.tf/gtd-"+str(nIter), gtd.as_numpy())
 
     # check that progress can be made along that direction
     if gtd > -tolX:
@@ -150,9 +151,9 @@ def lbfgs(opfunc, x, config, state):
       tmp1 = im.abs(g)
       t = min(1, im.div(1, im.reduce_sum(tmp1)))
     else:
-      t = env.numpy_to_itensor(learningRate, dtype=tf.float64)
+      t = learningRate
 
-    np.save("stepdata.tf/t-"+str(nIter), t.as_numpy())
+      #    np.save("stepdata.temp.tf/t-"+str(nIter), t.as_numpy())
 
     # optional line search: user function
     lsFuncEval = 0
@@ -173,9 +174,9 @@ def lbfgs(opfunc, x, config, state):
       lsFuncEval = 1
       f_hist.append(f)
 
-    np.save("stepdata.tf/g-"+str(nIter), g.as_numpy())
-    np.save("stepdata.tf/f-"+str(nIter), f.as_numpy())
-    np.save("stepdata.tf/x-"+str(nIter), x.as_numpy())
+      #    np.save("stepdata.temp.tf/g-"+str(nIter), g.as_numpy())
+      #    np.save("stepdata.temp.tf/f-"+str(nIter), f.as_numpy())
+      #    np.save("stepdata.temp.tf/x-"+str(nIter), x.as_numpy())
 
     # update func eval
     currentFuncEval = currentFuncEval + lsFuncEval
@@ -199,14 +200,14 @@ def lbfgs(opfunc, x, config, state):
       # check optimality
       verbose('optimality condition below tolFun')
       break
-    np.save("stepdata.tf/tmp1-"+str(nIter), tmp1.as_numpy())
+    #    np.save("stepdata.temp.tf/tmp1-"+str(nIter), tmp1.as_numpy())
     
     tmp1 = im.abs(d*t)
     if im.reduce_sum(tmp1) <= tolX:
       # step size below tolX
       verbose('step size below tolX')
       break
-    np.save("stepdata.tf/tmp11-"+str(nIter), tmp1.as_numpy())
+    #    np.save("stepdata.temp.tf/tmp11-"+str(nIter), tmp1.as_numpy())
     
 
     if im.abs(f-f_old) < tolX:
@@ -214,7 +215,7 @@ def lbfgs(opfunc, x, config, state):
       verbose('function value changing less than tolX'+str(im.abs(f-f_old)))
       break
 
-    np.save("stepdata.tf/fdiff-"+str(nIter), (f-f_old).as_numpy())
+    #    np.save("stepdata.temp.tf/fdiff-"+str(nIter), (f-f_old).as_numpy())
 
 
   # save state
@@ -252,6 +253,7 @@ def initialize_model(sess, train_data_flat, train_labels):
   Wnorm = tf.reduce_sum(tf.square(W))
   bnorm = tf.reduce_sum(tf.square(b))
   loss = cross_entropy_loss + (bnorm + Wnorm)/2
+  loss_handle_op = tf.get_session_handle(loss)
 
   # grads = tf.gradients(loss, [W, b])
   opt = tf.train.GradientDescentOptimizer(learning_rate=learningRate)
@@ -261,6 +263,7 @@ def initialize_model(sess, train_data_flat, train_labels):
   W_grad = grads_and_vars[0][0]
   b_grad = grads_and_vars[1][0]
   flat_grad = concat_flatten([tf.transpose(W_grad), b_grad])
+  flat_grad_handle_op = tf.get_session_handle(flat_grad)
   flat_params = concat_flatten([tf.transpose(W), b])
 
   # initialize x and targets
@@ -278,7 +281,8 @@ def initialize_model(sess, train_data_flat, train_labels):
                                     train_labels[:batchSize]})
   sess.run([W.initializer, b.initializer])
   [(Wgrad, W), (bgrad, b)] = grads_and_vars
-  return [loss, flat_params, flat_grad, W, b, train_step]
+  return [loss, loss_handle_op, flat_params, flat_grad, flat_grad_handle_op,
+          W, b, train_step]
 
 
 def concat_flatten(tensors):
@@ -287,7 +291,6 @@ def concat_flatten(tensors):
   for tensor in tensors:
     flat_tensors.append(tf.reshape(tensor, [-1]))
   return tf.concat(0, flat_tensors)
-
 
 
 # Lua-like struct object with 0 defaults
@@ -305,20 +308,21 @@ def rel_error(a, b):
     return np.max((a-b)/b)
   return (a-b)/b
 
-def load_lua_vals_lbfgs():
+def load_lua_vals_lbfgs(fvals_only=True):
   """Load values generated by mnist_lbfgs.lua"""
   
   lua_grads = []
   lua_params = []
   lua_fvals = []
   for i in range(0, 1000):
-    grad_fname = "stepdata.lbfgs/g-"+str(i)
-    param_fname = "stepdata.lbfgs/x-"+str(i)
     fval_fname = "stepdata.lbfgs/f-"+str(i)
-    if not os.path.exists(grad_fname):
+    if not os.path.exists(fval_fname):
         break
-    lua_grads.append(np.loadtxt(grad_fname))
-    lua_params.append(np.loadtxt(param_fname))
+    if not fvals_only or i == 0:
+      grad_fname = "stepdata.lbfgs/g-"+str(i)
+      param_fname = "stepdata.lbfgs/x-"+str(i)
+      lua_grads.append(np.loadtxt(grad_fname))
+      lua_params.append(np.loadtxt(param_fname))
     lua_fvals.append(np.loadtxt(fval_fname))
     
   return lua_grads, lua_params, lua_fvals
@@ -350,7 +354,7 @@ def doit():
   train_data = np.load("mnist.t7/train_32x32.npy").reshape((-1, 1024))
   train_labels = np.load("mnist.t7/train_labels.npy")
 
-  [loss, flat_params, flat_grad, W, b,
+  [loss, loss_handle_op, flat_params, flat_grad, flat_grad_handle_op, W, b,
    train_step] = initialize_model(sess, train_data, train_labels)
 
 
@@ -364,22 +368,26 @@ def doit():
     lua_b = x0[-10:]
     tf_b = lua_b.reshape((1, -1))
 
-    [loss0, grad0] = sess.run([loss, flat_grad],
-                              feed_dict={W: tf_W, b: tf_b})
+    #[loss0, grad0] = sess.run([loss, flat_grad],
+    #                          feed_dict={W: tf_W, b: tf_b})
+    loss_handle, grad_handle = sess.run([loss_handle_op, flat_grad_handle_op],
+                                        feed_dict={W: tf_W, b: tf_b})
 
-    return [env.numpy_to_itensor(loss0, dtype=tf.float64),
-            env.numpy_to_itensor(grad0, dtype=tf.float64)]
+    #    return [env.numpy_to_itensor(loss0, dtype=tf.float64),
+    #            env.numpy_to_itensor(grad0, dtype=tf.float64)]
+    return [env.handle_to_itensor(loss_handle),
+            env.handle_to_itensor(grad_handle)]
 
   x0 = env.numpy_to_itensor(lua_params[0], dtype=tf.float64)
   #  import pdb; pdb.set_trace()
   x, f_hist, currentFuncEval = lbfgs(opfunc, x0, config, state)
   f_hist = [t.as_numpy() for t in f_hist]
   report_error("Fval errors", f_hist, lua_fvals)
-  np.save("stepdata.lbfgs/tf_steps.npy", f_hist)
 
 
 # create immediate environment
 env = immediate.Env(tf)
+env.disable_gc()
 sess = env.sess
 controller = env.g.as_default()
 controller.__enter__()
