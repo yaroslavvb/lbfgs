@@ -1,7 +1,5 @@
 import time
 import numpy as np
-import tensorflow as tf
-from tensorflow.contrib import immediate
 import gc
 import sys, os
 
@@ -17,6 +15,7 @@ def test_numpy(N, iters):
   return np.asarray(times)*10**6
 
 def test_tf(N, iters):
+  import tensorflow as tf
   tf.reset_default_graph()
   arr = tf.Variable(tf.ones_initializer(N), dtype=dtype)
   result = tf.reduce_sum(arr)
@@ -33,6 +32,7 @@ def test_tf(N, iters):
   return np.asarray(times)*10**6
   
 def test_tf_persistent(N, iters):
+  import tensorflow as tf
   tf.reset_default_graph()
   arr = tf.ones(N, dtype=dtype)
   arr_handle_op = tf.get_session_handle(tf.identity(arr))
@@ -52,6 +52,8 @@ def test_tf_persistent(N, iters):
   return np.asarray(times)*10**6
 
 def test_tf_env(N, iters):
+  from tensorflow.contrib import immediate
+  import tensorflow as tf
   env = immediate.Env(tf)
   env.disable_gc()
   arr = env.tf.ones((N,), dtype=dtype)
@@ -78,6 +80,6 @@ if __name__=='__main__':
   elif benchmark_type == 'tf_persistent':
     print np.min(test_tf_persistent(N=10**5, iters=50000))
   elif benchmark_type == 'tf_env':
-    print np.min(test_tf_env(N=10**5, iters=5000))
+    print np.min(test_tf_env(N=10**5, iters=50000))
   else:
     print 'unknown benchmark', benchmark_type
