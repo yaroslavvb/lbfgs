@@ -72,11 +72,11 @@ if __name__=='__main__':
 
   benchmark_type = sys.argv[1]
   if benchmark_type == 'np':
-    print np.min(test_numpy(N=10**5, iters=5000))
+    print np.min(test_numpy(N=10**5, iters=50000))
   elif benchmark_type == 'tf':
-    print np.min(test_tf(N=10**5, iters=5000))
+    print np.min(test_tf(N=10**5, iters=50000))
   elif benchmark_type == 'tf_persistent':
-    print np.min(test_tf_persistent(N=10**5, iters=5000))
+    print np.min(test_tf_persistent(N=10**5, iters=50000))
   elif benchmark_type == 'tf_env':
     print np.min(test_tf_env(N=10**5, iters=5000))
   else:
