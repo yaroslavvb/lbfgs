@@ -121,6 +121,7 @@ function optim.hacked_lbfgs(opfunc, x, config, state)
    -- optimize for a max of maxIter iterations
    local nIter = 0
    while nIter < maxIter do
+      print(nIter, "val", f)
       -- keep track of nb of iterations
       nIter = nIter + 1
       state.nIter = state.nIter + 1

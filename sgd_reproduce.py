@@ -13,6 +13,10 @@ Fval errors max 1.5897629802e-08 sequence
    1.5898e-08   1.5074e-08   1.4197e-08   1.4909e-08   1.1135e-08]
 """
 
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+
 import sys, os
 
 import numpy as np
@@ -70,7 +74,7 @@ def concat_flatten(tensors):
         flat_tensors.append(tf.reshape(tensor, [-1]))
     return tf.concat(0, flat_tensors)
 
-def compute_tf_values(lua_params):
+def compute_tf_values(lua_params, use_torch_steps):
   """Run tensorflow SGD for a few steps, return tuple of gradient history,
   parameter history and loss value history."""
 
@@ -91,6 +95,8 @@ def compute_tf_values(lua_params):
   opt = tf.train.GradientDescentOptimizer(learning_rate=learningRate)
   grads_and_vars = opt.compute_gradients(loss, [W, b])
   train_step = opt.apply_gradients(grads_and_vars)
+
+  #custom_train_step = opt.apply_gradients
 
   # to match Lua gradient, must transpose W
   W_grad = grads_and_vars[0][0]
@@ -130,10 +136,21 @@ def compute_tf_values(lua_params):
     tf_W = lua_W.T
     lua_b = lua_params[i][-10:]
     tf_b = lua_b.reshape((1, -1))
+
     tf_grads_ref.append(sess.run(flat_grad, feed_dict={W: tf_W, b: tf_b}))
     tf_fvals_ref.append(sess.run(loss, feed_dict={W: tf_W, b: tf_b}))
 
-    sess.run(train_step)
+    if use_torch_steps:
+      [(W_grad, _), (b_grad, _)] = grads_and_vars
+      lua_W_grad = lua_grads[i][:-10]
+      lua_b_grad = lua_grads[i][-10:]
+      tf_W_grad = lua_W_grad.reshape((10, 1024)).T
+      tf_b_grad = lua_b_grad.reshape((1, -1))
+      feed_dict = {W_grad: tf_W_grad, b_grad: tf_b_grad}
+    else:
+      feed_dict = {}
+      
+    sess.run(train_step, feed_dict=feed_dict)
 
   return tf_grads, tf_params, tf_fvals, tf_grads_ref, tf_fvals_ref
 
@@ -141,6 +158,9 @@ def compare_vals(torch_vals, tf_vals):
   pass
 
 def max_relative_error(vec1, vec2):
+  vec1 = np.asarray(vec1)
+  vec2 = np.asarray(vec2)
+
   return np.max(np.abs((vec1-vec2)/vec1))
 
 def report_error(message, values1, values2):
@@ -151,10 +171,13 @@ def report_error(message, values1, values2):
                                   str(errors)))
 
   
-if __name__=="__main__":
+
+def do_comparison(use_torch_steps):
+  global lua_grads, lua_params, lua_fvals
+  
   lua_grads,lua_params,lua_fvals = read_torch_values()
   (tf_grads, tf_params, tf_fvals, tf_grads_ref,
-   tf_fvals_ref) = compute_tf_values(lua_params)
+   tf_fvals_ref) = compute_tf_values(lua_params, use_torch_steps)
    
   tf_fvals_np = np.array(tf_fvals)
   lua_fvals_np = np.array(lua_fvals)
@@ -164,4 +187,12 @@ if __name__=="__main__":
   report_error("Gradient ref errors", lua_grads, tf_grads_ref)
   report_error("Fval errors", lua_fvals, tf_fvals)
   report_error("Fval errors ref", lua_fvals, tf_fvals_ref)
-  assert max_relative_error(lua_grads[-1], tf_grads[-1]) < 7e-05
+  assert max_relative_error(lua_grads, tf_grads) < 2e-03
+
+  print(tf_grads[0])
+
+if __name__=="__main__":
+  print("Comparing with Torch steps")
+  do_comparison(True)
+  print("Comparing with native steps")
+  do_comparison(False)
