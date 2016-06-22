@@ -14,7 +14,7 @@ def test_numpy(N, iters):
     end_time = time.time()
     times.append(end_time-start_time)
 
-  return np.asarray(times)
+  return np.asarray(times)*10**6
 
 def test_tf(N, iters):
   tf.reset_default_graph()
@@ -30,7 +30,7 @@ def test_tf(N, iters):
     end_time = time.time()
     times.append(end_time-start_time)
 
-  return np.asarray(times)
+  return np.asarray(times)*10**6
   
 def test_tf_persistent(N, iters):
   tf.reset_default_graph()
@@ -49,7 +49,7 @@ def test_tf_persistent(N, iters):
     end_time = time.time()
     times.append(end_time-start_time)
 
-  return np.asarray(times)
+  return np.asarray(times)*10**6
 
 def test_tf_env(N, iters):
   env = immediate.Env(tf)
@@ -62,7 +62,7 @@ def test_tf_env(N, iters):
     end_time = time.time()
     times.append(end_time-start_time)
     
-  return np.asarray(times)
+  return np.asarray(times)*10**6
 
 if __name__=='__main__':
   # turn off Python garbage collector to not mess with times
@@ -74,7 +74,7 @@ if __name__=='__main__':
   if benchmark_type == 'np':
     print np.min(test_numpy(N=10**5, iters=5000))
   elif benchmark_type == 'tf':
-    np.min(test_tf(N=10**5, iters=5000))
+    print np.min(test_tf(N=10**5, iters=5000))
   elif benchmark_type == 'tf_persistent':
     print np.min(test_tf_persistent(N=10**5, iters=5000))
   elif benchmark_type == 'tf_env':
