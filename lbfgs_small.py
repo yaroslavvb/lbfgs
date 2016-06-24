@@ -4,6 +4,7 @@ from __future__ import print_function
 
 # Example of running l-BFGS in immediate mode
 # mixing tf and immediate execution
+# uses small size parameter vector
 
 import types
 import time
@@ -221,17 +222,19 @@ def mnist_model(train_data_flat, train_labels, x0):
   
   #  batchSize = 60000
   batchSize = 1
+  x_size = 10
+  x_offset = 512
 
   # reshape flat parameter vector into W and b parameter matrices
   x_placeholder, param = tf.get_session_tensor(x0.tf_handle, x0.dtype)
-  W_flat = tf.slice(param, [0], [10240])
-  W = tf.reshape(W_flat, [1024, 10])
-  b_flat = tf.slice(param, [10240], [10])
+  W_flat = tf.slice(param, [0], [x_size*10])
+  W = tf.reshape(W_flat, [x_size, 10])
+  b_flat = tf.slice(param, [x_size*10], [10])
   b = tf.reshape(b_flat, [1, 10])
 
   # create model
-  data = tf.Variable(tf.zeros_initializer((batchSize, 1024), dtype=dtype))
-  targets = tf.Variable(tf.zeros_initializer((batchSize, 10), dtype=dtype))
+  data = tf.Variable(tf.zeros_initializer((batchSize, x_size), dtype=dtype))
+  targets = tf.Variable(tf.zeros_initializer((batchSize, x_size), dtype=dtype))
   logits = tf.matmul(data, W) + b
   cross_entropy = tf.nn.softmax_cross_entropy_with_logits(logits, targets)
 
@@ -252,7 +255,7 @@ def mnist_model(train_data_flat, train_labels, x0):
   labels_placeholder = tf.placeholder(shape=(batchSize), dtype=tf.int32)
   labels_onehot = tf.one_hot(labels_placeholder - 1, 10, dtype=dtype)
   targets_init = targets.assign(labels_onehot)
-  sess.run(data_init, feed_dict={data_placeholder:train_data_flat[:batchSize]})
+  sess.run(data_init, feed_dict={data_placeholder:train_data_flat[:batchSize,x_offset:x_offset+x_size]})
   sess.run(targets_init, feed_dict={labels_placeholder:
                                     train_labels[:batchSize]})
 
@@ -285,7 +288,7 @@ def rel_error(a, b):
 def doit():
   state = Struct()
   config = Struct()
-  config.maxIter = 10
+  config.maxIter = 2
   config.verbose = True
 
   train_data = np.load("mnist.t7/train_32x32.npy").reshape((-1, 1024))
@@ -298,12 +301,13 @@ def doit():
 
 if __name__=='__main__':
   # create immediate environment
-  env = immediate.Env(tf)
+  config = tf.ConfigProto(log_device_placement=True)
+  env = immediate.Env(tf, config=config)
   env.disable_gc()
   sess = env.sess
   controller = env.g.as_default()
   controller.__enter__()
-  im = env.tf   # "im" is the mirror of "tf" but runs in immediate mode
+  im = env.tf    # im is the mirror of "tf" in immediate mode
   dtype = tf.float32
   
   try:
