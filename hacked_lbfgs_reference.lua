@@ -1,3 +1,4 @@
+-- clean-up version of lbfgs_hacked
 --[[ An implementation of L-BFGS, heavily inspired by minFunc (Mark Schmidt)
 
 This implementation of L-BFGS relies on a user-provided line
