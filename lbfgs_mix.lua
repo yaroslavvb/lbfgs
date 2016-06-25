@@ -163,10 +163,6 @@ testData = mnist.loadTestSet(nbTestingPatches, geometry)
 
 ----------------------------------------------------------------------
 -- define training and testing functions
---
-
--- this matrix records the current confusion across classes
-confusion = optim.ConfusionMatrix(classes)
 
 -- log results to files
 trainLogger = optim.Logger(paths.concat(opt.save, 'train.log'))
@@ -238,10 +234,6 @@ function train(dataset)
             gradParameters:add( sign(parameters):mul(opt.coefL1) + parameters:clone():mul(opt.coefL2) )
          end
 
-         -- update confusion
-         for i = 1,opt.batchSize do
-            confusion:add(outputs[i], targets[i])
-         end
          -- return f and df/dX
          return f,gradParameters
       end
@@ -271,13 +263,6 @@ function train(dataset)
    time = sys.clock() - time
    time = time / dataset:size()
    print("<trainer> time to learn 1 sample = " .. (time*1000) .. 'ms')
-
-   print("Accuracy")
-   print(confusion.totalValid)
-   -- print confusion matrix
-   --   print(confusion)
-   trainLogger:add{['% mean class accuracy (train set)'] = confusion.totalValid * 100}
-   confusion:zero()
 
    -- save/log current net
    -- local filename = paths.concat(opt.save, 'mnist.net')

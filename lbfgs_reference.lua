@@ -44,6 +44,7 @@ RETURN:
 -- require 'pl'
 -- require 'paths'
 
+
 -- NOTE(yaroslavvb): torch notes
 -- a:add(scalar1, tensor2) --> a+=scalar1*tensor2
 -- a:add(tensor1, tensor2) --> a = tensor1 + tensor2
@@ -112,10 +113,16 @@ function optim.lbfgs_reference(opfunc, x, config, state)
    local g_old = state.g_old
    local f_old = state.f_old
 
+   start_time = sys.clock()
+
    -- optimize for a max of maxIter iterations
    local nIter = 0
    while nIter < maxIter do
-      print(nIter, "val", f)
+      ss = string.format("%3d  val %10.3f  %.2f sec", nIter, f,
+			 sys.clock() - start_time)
+      print(ss)
+      start_time = sys.clock()
+      
       -- keep track of nb of iterations
       nIter = nIter + 1
       state.nIter = state.nIter + 1
