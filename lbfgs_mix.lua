@@ -1,3 +1,6 @@
+-- Example to compare torch against l-BFGS mix in immediate mode
+-- 60k examples, memory=5, max iterations=100
+
 ----------------------------------------------------------------------
 -- forked from https://github.com/torch/demos/blob/master/train-a-digit-classifier/train-on-mnist.lua
 ----------------------------------------------------------------------
@@ -52,7 +55,9 @@ local opt = lapp[[
 torch.manualSeed(1)
 
 -- threads
-torch.setnumthreads(opt.threads)
+
+--torch.setnumthreads(opt.threads)
+torch.setnumthreads(12)
 print('<torch> set nb of threads to ' .. torch.getnumthreads())
 
 -- use floats, for SGD
@@ -62,7 +67,8 @@ print('<torch> set nb of threads to ' .. torch.getnumthreads())
 
 torch.setdefaulttensortype('torch.FloatTensor')
 opt.optimization = 'LBFGS'
-opt.maxIter = 10
+opt.maxIter = 100
+opt.nCorrection = 5
 opt.batchSize = 60000
 opt.model = 'linear'
 opt.coefL2 = 1

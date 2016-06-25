@@ -2,8 +2,8 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-# Example of running l-BFGS in immediate mode
-# mixing tf and immediate execution
+"""Example of training MNIST using tf.gradients for differentiation and
+Immediate mode for implementation of l-BFGS."""
 
 import types
 import time
@@ -17,9 +17,13 @@ def verbose_func(s):
   print(s)
   
 def dot(a, b):
-  return im.reduce_sum(a*b)
+  """Dot product function since TensorFlow doesn't have one."""
+  return ti.reduce_sum(a*b)
 
 def lbfgs(opfunc, x, config, state):
+  """Line-by-line port of lbfgs.lua, but using TensorFlow immediate mode.
+  """
+  
   maxIter = config.maxIter or 20
   maxEval = config.maxEval or maxIter*1.25
   tolFun = config.tolFun or 1e-5
@@ -45,8 +49,8 @@ def lbfgs(opfunc, x, config, state):
   p = g.shape[0]
 
   # check optimality of initial point
-  tmp1 = im.abs(g)
-  if im.reduce_sum(tmp1) <= tolFun:
+  tmp1 = ti.abs(g)
+  if ti.reduce_sum(tmp1) <= tolFun:
     verbose("optimality condition below tolFun")
     return x, f_hist
 
@@ -132,8 +136,8 @@ def lbfgs(opfunc, x, config, state):
 
     # reset initial guess for step size
     if state.nIter == 1:
-      tmp1 = im.abs(g)
-      t = min(1, 1/im.reduce_sum(tmp1))
+      tmp1 = ti.abs(g)
+      t = min(1, 1/ti.reduce_sum(tmp1))
     else:
       t = learningRate
 
@@ -175,21 +179,21 @@ def lbfgs(opfunc, x, config, state):
       verbose('max nb of function evals')
       break
 
-    tmp1 = im.abs(g)
-    if im.reduce_sum(tmp1) <=tolFun:
+    tmp1 = ti.abs(g)
+    if ti.reduce_sum(tmp1) <=tolFun:
       # check optimality
       verbose('optimality condition below tolFun')
       break
     
-    tmp1 = im.abs(d*t)
-    if im.reduce_sum(tmp1) <= tolX:
+    tmp1 = ti.abs(d*t)
+    if ti.reduce_sum(tmp1) <= tolX:
       # step size below tolX
       verbose('step size below tolX')
       break
 
-    if im.abs(f-f_old) < tolX:
+    if ti.abs(f-f_old) < tolX:
       # function value changing less than tolX
-      verbose('function value changing less than tolX'+str(im.abs(f-f_old)))
+      verbose('function value changing less than tolX'+str(ti.abs(f-f_old)))
       break
 
 
@@ -205,9 +209,6 @@ def lbfgs(opfunc, x, config, state):
   state.t = t
   state.d = d
 
-  np.set_printoptions(precision=4)
-  print(np.array(sorted(times)))
-  
   return x, f_hist, currentFuncEval
       
 
@@ -217,21 +218,25 @@ def mnist_model(train_data_flat, train_labels, x0):
 
   Result is a Python callable that accepts ITensor parameter vector and returns
   ITensor loss and gradient.
+
+  IE, you can do:
+      f=mnist_model(...)
+      loss, grad = f(x)
   """
   
-  #  batchSize = 60000
-  batchSize = 1
+  batchSize = 60000
 
   # reshape flat parameter vector into W and b parameter matrices
-  x_placeholder, param = tf.get_session_tensor(x0.tf_handle, x0.dtype)
+  param = env.create_input(x0)
+
   W_flat = tf.slice(param, [0], [10240])
   W = tf.reshape(W_flat, [1024, 10])
   b_flat = tf.slice(param, [10240], [10])
   b = tf.reshape(b_flat, [1, 10])
 
   # create model
-  data = tf.Variable(tf.zeros_initializer((batchSize, 1024), dtype=dtype))
-  targets = tf.Variable(tf.zeros_initializer((batchSize, 10), dtype=dtype))
+  data = tf.Variable(tf.zeros_initializer((batchSize, 1024)))
+  targets = tf.Variable(tf.zeros_initializer((batchSize, 10)))
   logits = tf.matmul(data, W) + b
   cross_entropy = tf.nn.softmax_cross_entropy_with_logits(logits, targets)
 
@@ -242,32 +247,20 @@ def mnist_model(train_data_flat, train_labels, x0):
   loss = cross_entropy_loss + (bnorm + Wnorm)/2
   [grad] = tf.gradients(loss, [param])
 
-  # get handle ops that will be used to initialize ITensors
-  loss_handle_tensor = tf.get_session_handle(loss)
-  grad_handle_tensor = tf.get_session_handle(grad)
-
   # initialize data and targets
-  data_placeholder = tf.placeholder(dtype=dtype)
+  data_placeholder = tf.placeholder(dtype=tf.float32)
   data_init = data.assign(data_placeholder)
   labels_placeholder = tf.placeholder(shape=(batchSize), dtype=tf.int32)
-  labels_onehot = tf.one_hot(labels_placeholder - 1, 10, dtype=dtype)
+  labels_onehot = tf.one_hot(labels_placeholder - 1, 10)
   targets_init = targets.assign(labels_onehot)
   sess.run(data_init, feed_dict={data_placeholder:train_data_flat[:batchSize]})
   sess.run(targets_init, feed_dict={labels_placeholder:
                                     train_labels[:batchSize]})
 
-  # Create our callable that works on persistent Tensors
-  def eval_model(x):
-    loss_handle, grad_handle = sess.run([loss_handle_tensor,
-                                         grad_handle_tensor],
-                                        feed_dict={x_placeholder: x.tf_handle})
-    return [env.handle_to_itensor(loss_handle),
-            env.handle_to_itensor(grad_handle)]
-
-  return eval_model
+  return env.create_function(inputs=[param], outputs=[loss, grad])
 
 
-# Lua-like struct object with 0 defaults
+# dummy/Struct gives Lua-like struct object with 0 defaults
 class dummy(object):
   pass
 
@@ -277,39 +270,30 @@ class Struct(dummy):
       return super(dummy, self).__getattribute__('__dict__')
     return self.__dict__.get(key, 0)
 
-def rel_error(a, b):
-  if isinstance(a, np.ndarray):
-    return np.max((a-b)/b)
-  return (a-b)/b
+  
+if __name__=='__main__':
+  
+  # create immediate environment
+  env = immediate.Env(tf)
+  sess = env.sess
 
-def doit():
+  # lines below make default graph/session match those of our immediate Env
+  # this is necessary to enable mixing immediate and classic modes
+  env.set_default_session()
+  env.set_default_graph()
+  
+  ti = env.tf   # "ti" is the mirror of "tf" but runs in immediate mode
+
+  # initialize l-BFSG parameters
   state = Struct()
   config = Struct()
-  config.maxIter = 10
+  config.nCorrection = 5
+  config.maxIter = 100
   config.verbose = True
 
   train_data = np.load("mnist.t7/train_32x32.npy").reshape((-1, 1024))
   train_labels = np.load("mnist.t7/train_labels.npy")
 
-  x0 = env.tensor_to_itensor(tf.ones((10250), dtype=dtype))
+  x0 = ti.ones((10250))
   opfunc = mnist_model(train_data, train_labels, x0)
   x, f_hist, currentFuncEval = lbfgs(opfunc, x0, config, state)
-
-
-if __name__=='__main__':
-  # create immediate environment
-  env = immediate.Env(tf)
-  env.disable_gc()
-  sess = env.sess
-  controller = env.g.as_default()
-  controller.__enter__()
-  im = env.tf   # "im" is the mirror of "tf" but runs in immediate mode
-  dtype = tf.float32
-  
-  try:
-    doit()
-  except:
-    import sys, pdb, traceback
-    type, value, tb = sys.exc_info()
-    traceback.print_exc()
-    pdb.post_mortem(tb)
