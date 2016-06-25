@@ -56,10 +56,11 @@ def lbfgs(opfunc, x, config, state):
 
   # optimize for a max of maxIter iterations
   nIter = 0
-  times = []
+  times = [0]
   while nIter < maxIter:
     start_time = time.time()
-    print(nIter, "val", f)
+    print("%3d  val %10.3f  %.2f sec" %(nIter, f.as_numpy(), times[-1]))
+    
     # keep track of nb of iterations
     nIter = nIter + 1
     state.nIter = state.nIter + 1
