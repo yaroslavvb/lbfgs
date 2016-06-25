@@ -283,8 +283,8 @@ if __name__=='__main__':
   if len(sys.argv)>1:
     num_threads = int(sys.argv[1])
 
+  config = tf.ConfigProto()
   if num_threads:
-    config = tf.ConfigProto()
     config.inter_op_parallelism_threads = num_threads
     config.intra_op_parallelism_threads = num_threads
     
