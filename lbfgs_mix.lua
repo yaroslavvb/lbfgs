@@ -236,8 +236,9 @@ function train(dataset)
       end
 
 
-      
-      fval,fgrad = feval(parameters)
+      new_parameters = torch.ones(10250)
+      fval,fgrad = feval(new_parameters)
+      print("new_parameters sum", new_parameters:sum())
       print("parameters sum", parameters:sum())
       print("inputs sum", inputs:sum())
       print("targets sum", targets:sum())
@@ -249,7 +250,7 @@ function train(dataset)
 --	 lineSearch = optim.lswolfe
       }
       --      optim.hacked_lbfgs(feval, parameters, lbfgsState)
-      optim.lbfgs_reference(feval, parameters, lbfgsState)
+      optim.lbfgs_reference(feval, new_parameters, lbfgsState)
        
       -- disp report:
       print('LBFGS step')
