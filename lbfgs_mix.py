@@ -278,9 +278,18 @@ class Struct(dummy):
 
   
 if __name__=='__main__':
-  
+
+  num_threads = 0
+  if len(sys.argv)>1:
+    num_threads = int(sys.argv[1])
+
+  if num_threads:
+    config = tf.ConfigProto()
+    config.inter_op_parallelism_threads = num_threads
+    config.intra_op_parallelism_threads = num_threads
+    
   # initialize immediate environment
-  env = immediate.Env(tf)
+  env = immediate.Env(tf, config=config)
   sess = env.sess
   env.set_default_session()  # set env's session as default session
   env.set_default_graph()  # set env's graph as default graph
