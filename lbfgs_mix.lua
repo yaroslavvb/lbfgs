@@ -157,9 +157,7 @@ criterion = nn.ClassNLLCriterion()
 nbTrainingPatches = 60000
 nbTestingPatches = 10000
 
-
 trainData = mnist.loadTrainSet(nbTrainingPatches, geometry)
-testData = mnist.loadTestSet(nbTestingPatches, geometry)
 
 ----------------------------------------------------------------------
 -- define training and testing functions
@@ -194,7 +192,6 @@ function train(dataset)
          local input = sample[1]:clone()
          local _,target = sample[2]:clone():max(1)
          target = target:squeeze()
---	 print("Target:", target)
          inputs[k] = input
          targets[k] = target
          k = k + 1
@@ -239,8 +236,11 @@ function train(dataset)
       end
 
 
-      fval,fgrad = feval(parameters)
       
+      fval,fgrad = feval(parameters)
+      print("parameters sum", parameters:sum())
+      print("inputs sum", inputs:sum())
+      print("targets sum", targets:sum())
       print("Feval", fval)
 
       -- Perform LBFGS step:
