@@ -1,4 +1,4 @@
--- clean-up version of lbfgs_hacked
+-- Version of l-BFGS that prints loss at every step
 --[[ An implementation of L-BFGS, heavily inspired by minFunc (Mark Schmidt)
 
 This implementation of L-BFGS relies on a user-provided line
@@ -47,7 +47,7 @@ RETURN:
 -- NOTE(yaroslavvb): torch notes
 -- a:add(scalar1, tensor2) --> a+=scalar1*tensor2
 -- a:add(tensor1, tensor2) --> a = tensor1 + tensor2
-function optim.hacked_lbfgs(opfunc, x, config, state)
+function optim.lbfgs_reference(opfunc, x, config, state)
    -- get/update state
    local config = config or {}
    local state = state or config

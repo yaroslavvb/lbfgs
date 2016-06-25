@@ -2,8 +2,8 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-"""Example of training MNIST using tf.gradients for differentiation and
-Immediate mode for implementation of l-BFGS."""
+"""Example of training MNIST using tf API to construct model and gradients,
+using immediate mode to manipulate gradients in l-BFGS."""
 
 import types
 import time
@@ -21,7 +21,7 @@ def dot(a, b):
   return ti.reduce_sum(a*b)
 
 def lbfgs(opfunc, x, config, state):
-  """Line-by-line port of lbfgs.lua, but using TensorFlow immediate mode.
+  """Line-by-line port of lbfgs.lua, using TensorFlow immediate mode.
   """
   
   maxIter = config.maxIter or 20
@@ -217,7 +217,8 @@ def mnist_model(train_data_flat, train_labels, x0):
   gradient on MNIST dataset. Mirrors 'linear' model from train-on-mnist.lua
 
   Result is a Python callable that accepts ITensor parameter vector and returns
-  ITensor loss and gradient.
+  ITensor loss and gradient. It works as a plug-in replacement of "opfunc"
+  in train-on-mnist
 
   IE, you can do:
       f=mnist_model(...)
@@ -226,9 +227,10 @@ def mnist_model(train_data_flat, train_labels, x0):
   
   batchSize = 60000
 
-  # reshape flat parameter vector into W and b parameter matrices
+  # create our input end-point, this is where ITensor->Tensor conversion happens
   param = env.create_input(x0)
 
+  # reshape flat parameter vector into W and b parameter matrices
   W_flat = tf.slice(param, [0], [10240])
   W = tf.reshape(W_flat, [1024, 10])
   b_flat = tf.slice(param, [10240], [10])
@@ -247,7 +249,7 @@ def mnist_model(train_data_flat, train_labels, x0):
   loss = cross_entropy_loss + (bnorm + Wnorm)/2
   [grad] = tf.gradients(loss, [param])
 
-  # initialize data and targets
+  # initialize data and targets. Load entire dataset into tf Variable
   data_placeholder = tf.placeholder(dtype=tf.float32)
   data_init = data.assign(data_placeholder)
   labels_placeholder = tf.placeholder(shape=(batchSize), dtype=tf.int32)
@@ -257,6 +259,9 @@ def mnist_model(train_data_flat, train_labels, x0):
   sess.run(targets_init, feed_dict={labels_placeholder:
                                     train_labels[:batchSize]})
 
+  # create immediate wrapper of tensorflow graph we just constructed
+  # ITensor input is automatically converged and fed into param
+  # and outputs are converted to ITensor objects and returned
   return env.create_function(inputs=[param], outputs=[loss, grad])
 
 
@@ -273,15 +278,11 @@ class Struct(dummy):
   
 if __name__=='__main__':
   
-  # create immediate environment
+  # initialize immediate environment
   env = immediate.Env(tf)
   sess = env.sess
-
-  # lines below make default graph/session match those of our immediate Env
-  # this is necessary to enable mixing immediate and classic modes
-  env.set_default_session()
-  env.set_default_graph()
-  
+  env.set_default_session()  # set env's session as default session
+  env.set_default_graph()  # set env's graph as default graph
   ti = env.tf   # "ti" is the mirror of "tf" but runs in immediate mode
 
   # initialize l-BFSG parameters

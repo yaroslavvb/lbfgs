@@ -28,7 +28,7 @@ require 'image'
 require 'pl'
 require 'paths'
 
-require 'hacked_lbfgs_reference'
+require 'lbfgs_reference'
 require 'port_util'
 require 'dataset-mnist'
 
@@ -55,9 +55,7 @@ local opt = lapp[[
 torch.manualSeed(1)
 
 -- threads
-
---torch.setnumthreads(opt.threads)
-torch.setnumthreads(12)
+torch.setnumthreads(opt.threads)
 print('<torch> set nb of threads to ' .. torch.getnumthreads())
 
 -- use floats, for SGD
@@ -128,8 +126,6 @@ if opt.network == '' then
       ------------------------------------------------------------
       model:add(nn.Reshape(1024))
       model:add(nn.Linear(1024,#classes))
---      model:add(nn.Reshape(2))
---      model:add(nn.Linear(2, #classes))
       ------------------------------------------------------------
 
    else
@@ -144,8 +140,6 @@ end
 
 -- retrieve parameters and gradients
 parameters,gradParameters = model:getParameters()
---print(parameters)
-print(torch.Tensor(1))
 
 -- verbose
 print('<mnist> using model:')
@@ -164,8 +158,6 @@ nbTrainingPatches = 60000
 nbTestingPatches = 10000
 
 
---mnist.saveTestSet()
---mnist.saveTrainSet()
 trainData = mnist.loadTrainSet(nbTrainingPatches, geometry)
 testData = mnist.loadTestSet(nbTestingPatches, geometry)
 
@@ -258,22 +250,14 @@ function train(dataset)
       fval,fgrad = feval(parameters)
       
       print("Feval", fval)
-      --      print("Fgrad", fgrad)
-      print("Saving parameters at step")
 
-      -- grad_fname = string.format("stepdata/grad-%s", t)
-      -- saveTensor1D(fgrad, grad_fname)
-      -- param_fname = string.format("stepdata/params-%s", t)
-      -- saveTensor1D(parameters, param_fname)
-      -- fval_fname = string.format("stepdata/fval-%s", t)
-      -- saveTensor0D(fval, fval_fname)
-      
       -- Perform LBFGS step:
       lbfgsState = lbfgsState or {
 	 maxIter = opt.maxIter,
 --	 lineSearch = optim.lswolfe
       }
-      optim.hacked_lbfgs(feval, parameters, lbfgsState)
+      --      optim.hacked_lbfgs(feval, parameters, lbfgsState)
+      optim.lbfgs_reference(feval, parameters, lbfgsState)
        
       -- disp report:
       print('LBFGS step')
