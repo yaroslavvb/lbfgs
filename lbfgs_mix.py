@@ -17,10 +17,15 @@ try:
 except:
   import immediate
 
-  
+
 def verbose_func(s):
   print(s)
-  
+
+# This determines which dot function is used.
+# Replacing native dot with a fast "fused" version makes iteration go
+# 0.27 sec -> 0.22 sec
+USE_FAST_DOT_PRODUCT=True
+
 def dot(a, b):
   """Dot product function since TensorFlow doesn't have one."""
   return ti.reduce_sum(a*b)
@@ -34,7 +39,7 @@ def make_fast_dot_function():
   which correspond to separate run calls in immediate mode.
 
   Here we instead treat whole graph of "reduce_sum" as a unit and compile it
-  to "immediate" unit. This cuts lbfgs iteration 0.27->0.22 sec."""
+  to "immediate" unit. This cuts lbfgs iteration ."""
 
   # make sample input, this itensor determines device placement and and dtype
   sample_input = ti.ones(())
@@ -331,6 +336,8 @@ if __name__=='__main__':
 
   x0 = ti.ones((10250))
 
-  dot = make_fast_dot_function()
+  if USE_FAST_DOT_PRODUCT:
+    dot = make_fast_dot_function()
+    
   opfunc = mnist_model(train_data, train_labels, x0)
   x, f_hist, currentFuncEval = lbfgs(opfunc, x0, config, state)
