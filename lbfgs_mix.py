@@ -25,6 +25,25 @@ def dot(a, b):
   """Dot product function since TensorFlow doesn't have one."""
   return ti.reduce_sum(a*b)
 
+def make_fast_dot_function():
+  """Creates a faster dot product function which merges several immediate
+  calls into single call. Result can be used as a faster alternative of dot()
+  above.
+
+  Background: Generic "reduce_sum" translates to several ops (range, rank, sum)
+  which correspond to separate run calls in immediate mode.
+
+  Here we instead treat whole graph of "reduce_sum" as a unit and compile it
+  to "immediate" unit. This cuts lbfgs iteration 0.27->0.22 sec."""
+
+  # make sample input, this itensor determines device placement and and dtype
+  sample_input = ti.ones(())
+  x0 = env.make_input(sample_input)
+  y0 = env.make_input(sample_input)
+  output = tf.reduce_sum(x0*y0, reduction_indices=[0])
+  return env.make_function(inputs=[x0, y0], outputs=output)
+
+
 def lbfgs(opfunc, x, config, state):
   """Line-by-line port of lbfgs.lua, using TensorFlow immediate mode.
   """
@@ -234,7 +253,7 @@ def mnist_model(train_data_flat, train_labels, x0):
   batchSize = 60000
 
   # create our input end-point, this is where ITensor->Tensor conversion happens
-  param = env.create_input(x0)
+  param = env.make_input(x0)
 
   # reshape flat parameter vector into W and b parameter matrices
   W_flat = tf.slice(param, [0], [10240])
@@ -268,7 +287,7 @@ def mnist_model(train_data_flat, train_labels, x0):
   # create immediate wrapper of tensorflow graph we just constructed
   # ITensor input is automatically converged and fed into param
   # and outputs are converted to ITensor objects and returned
-  return env.create_function(inputs=[param], outputs=[loss, grad])
+  return env.make_function(inputs=[param], outputs=[loss, grad])
 
 
 # dummy/Struct gives Lua-like struct object with 0 defaults
@@ -311,5 +330,7 @@ if __name__=='__main__':
   train_labels = np.load("mnist.t7/train_labels.npy")
 
   x0 = ti.ones((10250))
+
+  dot = make_fast_dot_function()
   opfunc = mnist_model(train_data, train_labels, x0)
   x, f_hist, currentFuncEval = lbfgs(opfunc, x0, config, state)
