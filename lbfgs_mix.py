@@ -51,7 +51,7 @@ def make_fast_dot_function():
 
 def lbfgs(opfunc, x, config, state):
   """Line-by-line port of lbfgs.lua, using TensorFlow immediate mode.
-  Inspired by Marc Schmidt's minfunc.m
+  Inspired by Mark Schmidt's minfunc.m
   """
   
   maxIter = config.maxIter or 20
