@@ -22,8 +22,8 @@ def verbose_func(s):
   print(s)
 
 # This determines which dot function is used.
-# Replacing native dot with a fast "fused" version makes iteration go
-# 0.27 sec -> 0.22 sec
+# Replacing simple dot() with a "fused" version makes iteration go
+# 0.27 sec -> 0.22 sec on MacOS
 USE_FAST_DOT_PRODUCT=True
 
 def dot(a, b):
@@ -39,7 +39,7 @@ def make_fast_dot_function():
   which correspond to separate run calls in immediate mode.
 
   Here we instead treat whole graph of "reduce_sum" as a unit and compile it
-  to "immediate" unit. This cuts lbfgs iteration ."""
+  to "immediate" unit."""
 
   # make sample input, this itensor determines device placement and and dtype
   sample_input = ti.ones(())
@@ -51,6 +51,7 @@ def make_fast_dot_function():
 
 def lbfgs(opfunc, x, config, state):
   """Line-by-line port of lbfgs.lua, using TensorFlow immediate mode.
+  Inspired by Marc Schmidt's minfunc.m
   """
   
   maxIter = config.maxIter or 20
