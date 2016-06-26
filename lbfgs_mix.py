@@ -11,8 +11,13 @@ import numpy as np
 import os, sys
 
 import tensorflow as tf
-from tensorflow.contrib import immediate
 
+try:
+  from tensorflow.contrib import immediate
+except:
+  import immediate
+
+  
 def verbose_func(s):
   print(s)
   
