@@ -86,10 +86,9 @@ def lbfgs(opfunc, x, config, state):
 
   # optimize for a max of maxIter iterations
   nIter = 0
-  times = [0]
+  times = []
   while nIter < maxIter:
     start_time = time.time()
-    print("%3d  val %10.3f  %.2f sec" %(nIter, f.as_numpy(), times[-1]))
     
     # keep track of nb of iterations
     nIter = nIter + 1
@@ -228,9 +227,12 @@ def lbfgs(opfunc, x, config, state):
       break
 
 
-    times.append(time.time()-start_time)
+    elapsed_time = time.time()-start_time
+    times.append(elapsed_time)
+    print("%3d  val %10.3f  %.2f sec" %(nIter, f.as_numpy(), elapsed_time))
 
-
+  print("Min time: %10.3f, median time: %10.3f" %(min(times), np.median(times)))
+    
   # save state
   state.old_dirs = old_dirs
   state.old_stps = old_stps
@@ -286,9 +288,11 @@ def mnist_model(train_data_flat, train_labels, x0):
   labels_placeholder = tf.placeholder(shape=(batchSize), dtype=tf.int32)
   labels_onehot = tf.one_hot(labels_placeholder - 1, 10)
   targets_init = targets.assign(labels_onehot)
+  print("Loading %d examples into TensorFlow..."%(batchSize,))
   sess.run(data_init, feed_dict={data_placeholder:train_data_flat[:batchSize]})
   sess.run(targets_init, feed_dict={labels_placeholder:
                                     train_labels[:batchSize]})
+  print("Loaded.")
 
   # create immediate wrapper of tensorflow graph we just constructed
   # ITensor input is automatically converged and fed into param
@@ -321,6 +325,7 @@ if __name__=='__main__':
   # initialize immediate environment
   env = immediate.Env(tf, config=config)
   sess = env.sess
+  env.disable_gc()
   env.set_default_session()  # set env's session as default session
   env.set_default_graph()  # set env's graph as default graph
   ti = env.tf   # "ti" is the mirror of "tf" but runs in immediate mode
@@ -329,7 +334,7 @@ if __name__=='__main__':
   state = Struct()
   config = Struct()
   config.nCorrection = 5
-  config.maxIter = 100
+  config.maxIter = 50
   config.verbose = True
 
   train_data = np.load("mnist.t7/train_32x32.npy").reshape((-1, 1024))

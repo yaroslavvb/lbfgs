@@ -58,14 +58,9 @@ torch.manualSeed(1)
 torch.setnumthreads(opt.threads)
 print('<torch> set nb of threads to ' .. torch.getnumthreads())
 
--- use floats, for SGD
---if opt.optimization == 'SGD' then
---   torch.setdefaulttensortype('torch.FloatTensor')
---end
-
 torch.setdefaulttensortype('torch.FloatTensor')
 opt.optimization = 'LBFGS'
-opt.maxIter = 100
+opt.maxIter = 50
 opt.nCorrection = 5
 opt.batchSize = 60000
 opt.model = 'linear'

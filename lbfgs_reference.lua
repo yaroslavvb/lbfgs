@@ -117,10 +117,8 @@ function optim.lbfgs_reference(opfunc, x, config, state)
 
    -- optimize for a max of maxIter iterations
    local nIter = 0
+   times = torch.ones(maxIter)
    while nIter < maxIter do
-      ss = string.format("%3d  val %10.3f  %.2f sec", nIter, f,
-			 sys.clock() - start_time)
-      print(ss)
       start_time = sys.clock()
       
       -- keep track of nb of iterations
@@ -275,8 +273,16 @@ function optim.lbfgs_reference(opfunc, x, config, state)
          verbose('function value changing less than tolX')
          break
       end
+
+      elapsed_time = sys.clock() - start_time
+      ss = string.format("%3d  val %10.3f  %.2f sec", nIter, f,
+			 elapsed_time)
+      print(ss)
+      times[nIter] = elapsed_time
    end
 
+   print(string.format("Min time: %10.3f, median time: %10.3f",
+		       torch.min(times), torch.median(times)[1]))
    -- save state
    state.old_dirs = old_dirs
    state.old_stps = old_stps
