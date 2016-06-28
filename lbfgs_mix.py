@@ -334,7 +334,7 @@ if __name__=='__main__':
   state = Struct()
   config = Struct()
   config.nCorrection = 5
-  config.maxIter = 50
+  config.maxIter = 100
   config.verbose = True
 
   train_data = np.load("mnist.t7/train_32x32.npy").reshape((-1, 1024))

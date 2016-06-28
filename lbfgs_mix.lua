@@ -60,7 +60,7 @@ print('<torch> set nb of threads to ' .. torch.getnumthreads())
 
 torch.setdefaulttensortype('torch.FloatTensor')
 opt.optimization = 'LBFGS'
-opt.maxIter = 50
+opt.maxIter = 100
 opt.nCorrection = 5
 opt.batchSize = 60000
 opt.model = 'linear'
