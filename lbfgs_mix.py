@@ -3,7 +3,7 @@ from __future__ import division
 from __future__ import print_function
 
 """Example of training MNIST using tf API to construct model and gradients,
-using immediate mode to manipulate gradients in l-BFGS."""
+using imperative mode to manipulate gradients in l-BFGS."""
 
 import types
 import time
@@ -13,9 +13,9 @@ import os, sys
 import tensorflow as tf
 
 try:
-  from tensorflow.contrib import immediate
+  from tensorflow.contrib import imperative
 except:
-  import immediate
+  import imperative
 
 
 def verbose_func(s):
@@ -31,15 +31,15 @@ def dot(a, b):
   return ti.reduce_sum(a*b)
 
 def make_fast_dot_function():
-  """Creates a faster dot product function which merges several immediate
+  """Creates a faster dot product function which merges several imperative
   calls into single call. Result can be used as a faster alternative of dot()
   above.
 
   Background: Generic "reduce_sum" translates to several ops (range, rank, sum)
-  which correspond to separate run calls in immediate mode.
+  which correspond to separate run calls in imperative mode.
 
   Here we instead treat whole graph of "reduce_sum" as a unit and compile it
-  to "immediate" unit."""
+  to "imperative" unit."""
 
   # make sample input, this itensor determines device placement and and dtype
   sample_input = ti.ones(())
@@ -50,7 +50,7 @@ def make_fast_dot_function():
 
 
 def lbfgs(opfunc, x, config, state):
-  """Line-by-line port of lbfgs.lua, using TensorFlow immediate mode.
+  """Line-by-line port of lbfgs.lua, using TensorFlow imperative mode.
   Inspired by Mark Schmidt's minfunc.m
   """
   
@@ -294,7 +294,7 @@ def mnist_model(train_data_flat, train_labels, x0):
                                     train_labels[:batchSize]})
   print("Loaded.")
 
-  # create immediate wrapper of tensorflow graph we just constructed
+  # create imperative wrapper of tensorflow graph we just constructed
   # ITensor input is automatically converged and fed into param
   # and outputs are converted to ITensor objects and returned
   return env.make_function(inputs=[param], outputs=[loss, grad])
@@ -322,13 +322,13 @@ if __name__=='__main__':
     config.inter_op_parallelism_threads = num_threads
     config.intra_op_parallelism_threads = num_threads
     
-  # initialize immediate environment
-  env = immediate.Env(tf, config=config)
+  # initialize imperative environment
+  env = imperative.Env(tf, config=config)
   sess = env.sess
   env.disable_gc()
   env.set_default_session()  # set env's session as default session
   env.set_default_graph()  # set env's graph as default graph
-  ti = env.tf   # "ti" is the mirror of "tf" but runs in immediate mode
+  ti = env.tf   # "ti" is the mirror of "tf" but runs in imperative mode
 
   # initialize l-BFSG parameters
   state = Struct()
